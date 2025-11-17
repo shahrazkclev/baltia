@@ -623,12 +623,6 @@
         // Worker URL - must be defined before any functions that use it
         const workerUrl = 'https://baltay.cleverpoly-store.workers.dev';
         
-        // Cloudflare Stream API configuration
-        const cloudflareStreamToken = '8-MiSS2VH9yHfM82LhPV7bKWrUl7I6rumvTj1HW-';
-        const cloudflareStreamAccountId = 'b5f7bbc74ed9bf4c44b19d1f3b937e22';
-        const cloudflareStreamUploadUrl = `https://api.cloudflare.com/client/v4/accounts/${cloudflareStreamAccountId}/stream`;
-        const cloudflareStreamCopyUrl = `https://api.cloudflare.com/client/v4/accounts/${cloudflareStreamAccountId}/stream/copy`;
-        
         // Check if already authenticated (from sessionStorage)
         if (sessionStorage.getItem('baltay_authenticated') === 'true') {
             isAuthenticated = true;
@@ -1019,11 +1013,8 @@
                         }
                     }
 
-                    responseData = await fetch(cloudflareStreamUploadUrl, {
+                    responseData = await fetch(workerUrl + '/upload-video', {
                         method: 'POST',
-                        headers: {
-                            'Authorization': 'Bearer ' + cloudflareStreamToken
-                        },
                         body: formData
                     });
                 } else {
@@ -1059,11 +1050,10 @@
                         }
                     }
 
-                    responseData = await fetch(cloudflareStreamCopyUrl, {
+                    responseData = await fetch(workerUrl + '/copy-video', {
                         method: 'POST',
                         headers: {
-                            'Content-Type': 'application/json',
-                            'Authorization': 'Bearer ' + cloudflareStreamToken
+                            'Content-Type': 'application/json'
                         },
                         body: JSON.stringify(requestBody)
                     });

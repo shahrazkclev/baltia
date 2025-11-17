@@ -534,6 +534,9 @@
         const sortBy = document.getElementById('sortBy');
         const refreshBtn = document.getElementById('refreshBtn');
         
+        // Worker URL - must be defined before any functions that use it
+        const workerUrl = 'https://baltay.cleverpoly-store.workers.dev';
+        
         // Check if already authenticated (from sessionStorage)
         if (sessionStorage.getItem('baltay_authenticated') === 'true') {
             isAuthenticated = true;
@@ -615,9 +618,6 @@
                 authenticate();
             }
         });
-        
-        // Worker URL
-        const workerUrl = 'https://baltay.cleverpoly-store.workers.dev';
         
         // Add video to Supabase after successful upload (via Worker)
         async function addVideoToSupabase(streamId, videoName) {

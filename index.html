@@ -194,6 +194,10 @@
             color: #721c24;
             display: block;
         }
+        
+        #authStatus {
+            margin-top: 10px;
+        }
 
         .response pre {
             margin: 0;
@@ -241,16 +245,30 @@
             </ul>
         </div>
 
-        <div class="upload-type-toggle" style="margin-bottom: 20px; display: flex; gap: 10px; border-bottom: 2px solid #e0e0e0;">
-            <button type="button" class="toggle-btn active" data-type="file" style="flex: 1; padding: 12px; background: none; border: none; border-bottom: 3px solid #667eea; color: #667eea; font-weight: 600; cursor: pointer; font-size: 14px;">
-                📁 Upload File
-            </button>
-            <button type="button" class="toggle-btn" data-type="url" style="flex: 1; padding: 12px; background: none; border: none; border-bottom: 3px solid transparent; color: #666; font-weight: 600; cursor: pointer; font-size: 14px;">
-                🔗 From URL
-            </button>
+        <div id="authSection" style="margin-bottom: 20px;">
+            <div class="form-group">
+                <label for="password">Password *</label>
+                <input 
+                    type="password" 
+                    id="password" 
+                    name="password" 
+                    placeholder="Enter password to access upload"
+                    required
+                >
+            </div>
+            <button type="button" id="authBtn" style="margin-bottom: 20px;">Authenticate</button>
+            <div id="authStatus" style="display: none; padding: 12px; border-radius: 8px; margin-bottom: 20px; font-size: 14px;"></div>
         </div>
-        
-        <form id="uploadForm">
+
+        <form id="uploadForm" style="display: none;">
+            <div class="upload-type-toggle" style="margin-bottom: 20px; display: flex; gap: 10px; border-bottom: 2px solid #e0e0e0;">
+                <button type="button" class="toggle-btn active" data-type="file" style="flex: 1; padding: 12px; background: none; border: none; border-bottom: 3px solid #667eea; color: #667eea; font-weight: 600; cursor: pointer; font-size: 14px;">
+                    📁 Upload File
+                </button>
+                <button type="button" class="toggle-btn" data-type="url" style="flex: 1; padding: 12px; background: none; border: none; border-bottom: 3px solid transparent; color: #666; font-weight: 600; cursor: pointer; font-size: 14px;">
+                    🔗 From URL
+                </button>
+            </div>
             <div class="form-group" id="fileUploadGroup">
                 <label for="videoFile">Video File *</label>
                 <input 
@@ -321,7 +339,118 @@
         const videoFileInput = document.getElementById('videoFile');
         const videoUrlInput = document.getElementById('videoUrl');
         const fileInfo = document.getElementById('fileInfo');
+        const authSection = document.getElementById('authSection');
+        const uploadForm = document.getElementById('uploadForm');
+        const passwordInput = document.getElementById('password');
+        const authBtn = document.getElementById('authBtn');
+        const authStatus = document.getElementById('authStatus');
         let uploadType = 'file'; // 'file' or 'url'
+        let isAuthenticated = false;
+        
+        // Supabase configuration
+        const supabaseUrl = 'https://mixifcnokcmxarpzwfiy.supabase.co';
+        const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im1peGlmY25va2NteGFycHp3Zml5Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTM0NjYwNTEsImV4cCI6MjA2OTA0MjA1MX0.-4uIuzcHcDGS20-dtKbjVFOtpBSmwYhT9Bgt6KA-dXI';
+        
+        // Check if already authenticated (from sessionStorage)
+        if (sessionStorage.getItem('baltay_authenticated') === 'true') {
+            isAuthenticated = true;
+            authSection.style.display = 'none';
+            uploadForm.style.display = 'block';
+        }
+        
+        // Authenticate function
+        async function authenticate() {
+            const password = passwordInput.value.trim();
+            
+            if (!password) {
+                authStatus.style.display = 'block';
+                authStatus.className = 'response error';
+                authStatus.textContent = 'Please enter a password';
+                return;
+            }
+            
+            authBtn.disabled = true;
+            authStatus.style.display = 'block';
+            authStatus.className = 'response';
+            authStatus.textContent = 'Checking password...';
+            
+            try {
+                // Fetch password from Supabase
+                const response = await fetch(supabaseUrl + '/rest/v1/password?select=password_hash&limit=1', {
+                    method: 'GET',
+                    headers: {
+                        'apikey': supabaseKey,
+                        'Authorization': 'Bearer ' + supabaseKey,
+                        'Content-Type': 'application/json'
+                    }
+                });
+                
+                if (!response.ok) {
+                    throw new Error('Failed to verify password');
+                }
+                
+                const data = await response.json();
+                
+                if (data.length > 0 && data[0].password_hash === password) {
+                    // Password matches
+                    isAuthenticated = true;
+                    sessionStorage.setItem('baltay_authenticated', 'true');
+                    authStatus.className = 'response success';
+                    authStatus.textContent = '✓ Authentication successful!';
+                    
+                    // Hide auth section and show upload form
+                    setTimeout(() => {
+                        authSection.style.display = 'none';
+                        uploadForm.style.display = 'block';
+                    }, 1000);
+                } else {
+                    // Password doesn't match
+                    authStatus.className = 'response error';
+                    authStatus.textContent = '✗ Incorrect password';
+                    passwordInput.value = '';
+                }
+            } catch (error) {
+                authStatus.className = 'response error';
+                authStatus.textContent = 'Error: ' + error.message;
+            } finally {
+                authBtn.disabled = false;
+            }
+        }
+        
+        // Authenticate button click
+        authBtn.addEventListener('click', authenticate);
+        
+        // Allow Enter key to authenticate
+        passwordInput.addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') {
+                authenticate();
+            }
+        });
+        
+        // Add video to Supabase after successful upload
+        async function addVideoToSupabase(streamId, videoName) {
+            try {
+                const response = await fetch(supabaseUrl + '/rest/v1/baltay', {
+                    method: 'POST',
+                    headers: {
+                        'apikey': supabaseKey,
+                        'Authorization': 'Bearer ' + supabaseKey,
+                        'Content-Type': 'application/json',
+                        'Prefer': 'return=representation'
+                    },
+                    body: JSON.stringify({
+                        streamId: streamId,
+                        name: videoName
+                    })
+                });
+                
+                if (!response.ok) {
+                    console.error('Failed to add video to Supabase');
+                }
+            } catch (error) {
+                console.error('Error adding video to Supabase:', error);
+            }
+        }
 
         // Toggle between file and URL upload
         toggleButtons.forEach(btn => {
@@ -363,6 +492,16 @@
 
         form.addEventListener('submit', async (e) => {
             e.preventDefault();
+            
+            // Check authentication before allowing upload
+            if (!isAuthenticated && sessionStorage.getItem('baltay_authenticated') !== 'true') {
+                response.className = 'response error';
+                response.innerHTML = '<pre>Error: Please authenticate first</pre>';
+                response.style.display = 'block';
+                authSection.style.display = 'block';
+                uploadForm.style.display = 'none';
+                return;
+            }
             
             const videoName = document.getElementById('videoName').value;
             const thumbnailTime = document.getElementById('thumbnailTime').value;
@@ -465,8 +604,14 @@
                 response.innerHTML = `<pre>${JSON.stringify(data, null, 2)}</pre>`;
                 response.style.display = 'block';
 
-                // If successful, reset form
-                if (responseData.ok) {
+                // If successful, add to Supabase and reset form
+                if (responseData.ok && data.result) {
+                    // Extract streamId from response
+                    const streamId = data.result.uid || data.result.id;
+                    if (streamId) {
+                        // Add to Supabase
+                        await addVideoToSupabase(streamId, videoName);
+                    }
                     form.reset();
                     fileInfo.textContent = '';
                 }

@@ -204,6 +204,135 @@
             white-space: pre-wrap;
             word-wrap: break-word;
         }
+        
+        .videos-section {
+            margin-top: 30px;
+            padding-top: 30px;
+            border-top: 2px solid #e0e0e0;
+        }
+        
+        .videos-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+        }
+        
+        .videos-header h2 {
+            color: #333;
+            font-size: 20px;
+            margin: 0;
+        }
+        
+        .sort-controls {
+            display: flex;
+            gap: 10px;
+            align-items: center;
+        }
+        
+        .sort-controls select {
+            padding: 8px 12px;
+            border: 2px solid #e0e0e0;
+            border-radius: 6px;
+            font-size: 14px;
+            cursor: pointer;
+        }
+        
+        .videos-list {
+            display: grid;
+            gap: 12px;
+            max-height: 400px;
+            overflow-y: auto;
+        }
+        
+        .video-item {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 12px;
+            background: #f8f9fa;
+            border: 2px solid #e0e0e0;
+            border-radius: 8px;
+            transition: all 0.2s;
+        }
+        
+        .video-item:hover {
+            border-color: #667eea;
+            background: #f0f4ff;
+        }
+        
+        .video-info {
+            flex: 1;
+            min-width: 0;
+        }
+        
+        .video-name {
+            font-weight: 600;
+            color: #333;
+            margin-bottom: 4px;
+            word-break: break-word;
+        }
+        
+        .video-id {
+            font-size: 12px;
+            color: #666;
+            font-family: monospace;
+            word-break: break-all;
+        }
+        
+        .video-actions {
+            display: flex;
+            gap: 8px;
+            align-items: center;
+        }
+        
+        .btn-delete {
+            padding: 6px 12px;
+            background: #dc3545;
+            color: white;
+            border: none;
+            border-radius: 6px;
+            font-size: 13px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        
+        .btn-delete:hover {
+            background: #c82333;
+            transform: scale(1.05);
+        }
+        
+        .btn-sort {
+            padding: 6px 12px;
+            background: #667eea;
+            color: white;
+            border: none;
+            border-radius: 6px;
+            font-size: 13px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        
+        .btn-sort:hover {
+            background: #5568d3;
+        }
+        
+        .drag-handle {
+            cursor: move;
+            color: #999;
+            font-size: 18px;
+            padding: 0 8px;
+        }
+        
+        .drag-handle:hover {
+            color: #667eea;
+        }
+        
+        .video-item.dragging {
+            opacity: 0.5;
+        }
 
         .loading {
             display: none;
@@ -326,6 +455,23 @@
         </div>
 
         <div class="response" id="response"></div>
+        
+        <div id="videosSection" class="videos-section" style="display: none;">
+            <div class="videos-header">
+                <h2>Manage Videos</h2>
+                <div class="sort-controls">
+                    <label for="sortBy" style="font-size: 14px; color: #666;">Sort by:</label>
+                    <select id="sortBy">
+                        <option value="created_at.desc">Newest First</option>
+                        <option value="created_at.asc">Oldest First</option>
+                        <option value="name.asc">Name (A-Z)</option>
+                        <option value="name.desc">Name (Z-A)</option>
+                    </select>
+                    <button type="button" class="btn-sort" id="refreshBtn">🔄 Refresh</button>
+                </div>
+            </div>
+            <div id="videosList" class="videos-list"></div>
+        </div>
     </div>
 
     <script>
@@ -351,11 +497,18 @@
         const supabaseUrl = 'https://mixifcnokcmxarpzwfiy.supabase.co';
         const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im1peGlmY25va2NteGFycHp3Zml5Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTM0NjYwNTEsImV4cCI6MjA2OTA0MjA1MX0.-4uIuzcHcDGS20-dtKbjVFOtpBSmwYhT9Bgt6KA-dXI';
         
+        const videosSection = document.getElementById('videosSection');
+        const videosList = document.getElementById('videosList');
+        const sortBy = document.getElementById('sortBy');
+        const refreshBtn = document.getElementById('refreshBtn');
+        
         // Check if already authenticated (from sessionStorage)
         if (sessionStorage.getItem('baltay_authenticated') === 'true') {
             isAuthenticated = true;
             authSection.style.display = 'none';
             uploadForm.style.display = 'block';
+            videosSection.style.display = 'block';
+            loadVideos();
         }
         
         // Authenticate function
@@ -402,6 +555,8 @@
                     setTimeout(() => {
                         authSection.style.display = 'none';
                         uploadForm.style.display = 'block';
+                        videosSection.style.display = 'block';
+                        loadVideos();
                     }, 1000);
                 } else {
                     // Password doesn't match
@@ -439,18 +594,129 @@
                         'Prefer': 'return=representation'
                     },
                     body: JSON.stringify({
-                        streamId: streamId,
+                        streamid: streamId,
                         name: videoName
                     })
                 });
                 
                 if (!response.ok) {
                     console.error('Failed to add video to Supabase');
+                } else {
+                    // Refresh videos list after successful upload
+                    loadVideos();
                 }
             } catch (error) {
                 console.error('Error adding video to Supabase:', error);
             }
         }
+        
+        // Load videos from Supabase
+        async function loadVideos() {
+            if (!isAuthenticated) return;
+            
+            try {
+                const sortValue = sortBy.value;
+                const [field, order] = sortValue.split('.');
+                
+                const response = await fetch(supabaseUrl + `/rest/v1/baltay?select=id,streamid,name,created_at&order=${field}.${order}`, {
+                    method: 'GET',
+                    headers: {
+                        'apikey': supabaseKey,
+                        'Authorization': 'Bearer ' + supabaseKey,
+                        'Content-Type': 'application/json'
+                    }
+                });
+                
+                if (!response.ok) {
+                    throw new Error('Failed to fetch videos');
+                }
+                
+                const videos = await response.json();
+                displayVideos(videos);
+            } catch (error) {
+                console.error('Error loading videos:', error);
+                videosList.innerHTML = '<div style="padding: 20px; text-align: center; color: #dc3545;">Error loading videos: ' + error.message + '</div>';
+            }
+        }
+        
+        // Display videos in the list
+        function displayVideos(videos) {
+            if (videos.length === 0) {
+                videosList.innerHTML = '<div style="padding: 20px; text-align: center; color: #666;">No videos found</div>';
+                return;
+            }
+            
+            videosList.innerHTML = videos.map(video => `
+                <div class="video-item" data-id="${video.id}">
+                    <div class="video-info">
+                        <div class="video-name">${escapeHtml(video.name || 'Untitled Video')}</div>
+                        <div class="video-id">ID: ${video.streamid || video.streamId || 'N/A'}</div>
+                    </div>
+                    <div class="video-actions">
+                        <button class="btn-delete" onclick="deleteVideo(${video.id}, '${escapeHtml(video.name || 'this video')}')">🗑️ Delete</button>
+                    </div>
+                </div>
+            `).join('');
+        }
+        
+        // Delete video from Supabase
+        async function deleteVideo(id, videoName) {
+            if (!confirm(`Are you sure you want to delete "${videoName}"? This action cannot be undone.`)) {
+                return;
+            }
+            
+            try {
+                const deleteResponse = await fetch(supabaseUrl + `/rest/v1/baltay?id=eq.${id}`, {
+                    method: 'DELETE',
+                    headers: {
+                        'apikey': supabaseKey,
+                        'Authorization': 'Bearer ' + supabaseKey,
+                        'Content-Type': 'application/json'
+                    }
+                });
+                
+                if (!deleteResponse.ok) {
+                    throw new Error('Failed to delete video');
+                }
+                
+                // Refresh videos list
+                loadVideos();
+                
+                // Show success message
+                response.className = 'response success';
+                response.innerHTML = `<pre>Video "${videoName}" deleted successfully</pre>`;
+                response.style.display = 'block';
+                
+                setTimeout(() => {
+                    response.style.display = 'none';
+                }, 3000);
+            } catch (error) {
+                console.error('Error deleting video:', error);
+                response.className = 'response error';
+                response.innerHTML = `<pre>Error deleting video: ${error.message}</pre>`;
+                response.style.display = 'block';
+            }
+        }
+        
+        // Escape HTML to prevent XSS
+        function escapeHtml(text) {
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
+        }
+        
+        // Make deleteVideo available globally
+        window.deleteVideo = deleteVideo;
+        
+        // Sort videos when sort dropdown changes
+        sortBy.addEventListener('change', () => {
+            loadVideos();
+        });
+        
+        // Refresh button
+        refreshBtn.addEventListener('click', () => {
+            loadVideos();
+        });
 
         // Toggle between file and URL upload
         toggleButtons.forEach(btn => {

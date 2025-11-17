@@ -267,62 +267,108 @@
         
         .videos-list {
             display: grid;
-            gap: 12px;
-            max-height: 600px;
-            overflow-y: auto;
-            padding-right: 8px;
+            grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+            gap: 24px;
+            padding: 0;
         }
         
-        .videos-list::-webkit-scrollbar {
-            width: 8px;
-        }
-        
-        .videos-list::-webkit-scrollbar-track {
-            background: #f1f1f1;
-            border-radius: 4px;
-        }
-        
-        .videos-list::-webkit-scrollbar-thumb {
-            background: #667eea;
-            border-radius: 4px;
-        }
-        
-        .videos-list::-webkit-scrollbar-thumb:hover {
-            background: #5568d3;
+        @media (max-width: 768px) {
+            .videos-list {
+                grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+                gap: 16px;
+            }
         }
         
         .video-item {
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-            padding: 16px;
-            background: linear-gradient(135deg, #f8f9fa 0%, #ffffff 100%);
-            border: 2px solid #e0e0e0;
+            background: white;
             border-radius: 12px;
+            overflow: hidden;
             transition: all 0.3s ease;
-            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+            cursor: pointer;
+            display: flex;
+            flex-direction: column;
         }
         
         .video-item:hover {
-            border-color: #667eea;
-            background: linear-gradient(135deg, #f0f4ff 0%, #ffffff 100%);
-            box-shadow: 0 4px 12px rgba(102, 126, 234, 0.15);
-            transform: translateY(-2px);
+            transform: translateY(-4px);
+            box-shadow: 0 8px 24px rgba(0, 0, 0, 0.15);
+        }
+        
+        .video-thumbnail-container {
+            position: relative;
+            width: 100%;
+            padding-top: 56.25%; /* 16:9 aspect ratio */
+            background: #000;
+            overflow: hidden;
+            border-radius: 12px 12px 0 0;
+        }
+        
+        .video-thumbnail {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            transition: transform 0.3s ease;
+        }
+        
+        .video-item:hover .video-thumbnail {
+            transform: scale(1.05);
+        }
+        
+        .video-play-overlay {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            width: 64px;
+            height: 64px;
+            background: rgba(0, 0, 0, 0.7);
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            opacity: 0;
+            transition: opacity 0.3s ease, transform 0.3s ease;
+            pointer-events: none;
+        }
+        
+        .video-item:hover .video-play-overlay {
+            opacity: 1;
+            transform: translate(-50%, -50%) scale(1.1);
+        }
+        
+        .video-play-overlay::before {
+            content: '';
+            width: 0;
+            height: 0;
+            border-left: 20px solid white;
+            border-top: 12px solid transparent;
+            border-bottom: 12px solid transparent;
+            margin-left: 4px;
         }
         
         .video-info {
+            padding: 16px;
             flex: 1;
-            min-width: 0;
-            padding-right: 16px;
+            display: flex;
+            flex-direction: column;
         }
         
         .video-name {
             font-weight: 600;
             color: #333;
-            margin-bottom: 6px;
+            margin-bottom: 8px;
             word-break: break-word;
             font-size: 15px;
             line-height: 1.4;
+            display: -webkit-box;
+            -webkit-line-clamp: 2;
+            line-clamp: 2;
+            -webkit-box-orient: vertical;
+            overflow: hidden;
         }
         
         .video-id {
@@ -334,32 +380,34 @@
             padding: 4px 8px;
             border-radius: 4px;
             display: inline-block;
+            margin-bottom: 12px;
         }
         
         .video-actions {
             display: flex;
             gap: 8px;
             align-items: center;
-            flex-shrink: 0;
+            margin-top: auto;
+            padding-top: 12px;
+            border-top: 1px solid #e0e0e0;
         }
         
         .btn-delete {
-            padding: 8px 16px;
+            padding: 6px 12px;
             background: linear-gradient(135deg, #dc3545 0%, #c82333 100%);
             color: white;
             border: none;
-            border-radius: 8px;
-            font-size: 13px;
+            border-radius: 6px;
+            font-size: 12px;
             font-weight: 600;
             cursor: pointer;
             transition: all 0.2s;
-            box-shadow: 0 2px 4px rgba(220, 53, 69, 0.2);
+            flex: 1;
         }
         
         .btn-delete:hover {
             background: linear-gradient(135deg, #c82333 0%, #bd2130 100%);
             transform: translateY(-1px);
-            box-shadow: 0 4px 8px rgba(220, 53, 69, 0.3);
         }
         
         .btn-delete:active {
@@ -367,41 +415,104 @@
         }
         
         .btn-edit {
-            padding: 8px 16px;
+            padding: 6px 12px;
             background: linear-gradient(135deg, #667eea 0%, #5568d3 100%);
             color: white;
             border: none;
-            border-radius: 8px;
-            font-size: 13px;
+            border-radius: 6px;
+            font-size: 12px;
             font-weight: 600;
             cursor: pointer;
             transition: all 0.2s;
-            box-shadow: 0 2px 4px rgba(102, 126, 234, 0.2);
+            flex: 1;
         }
         
         .btn-edit:hover {
             background: linear-gradient(135deg, #5568d3 0%, #4a5bc4 100%);
             transform: translateY(-1px);
-            box-shadow: 0 4px 8px rgba(102, 126, 234, 0.3);
         }
         
         .btn-edit:active {
             transform: translateY(0);
         }
         
+        /* Video Modal */
+        .video-modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.9);
+            z-index: 1000;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+        }
+        
+        .video-modal.active {
+            display: flex;
+        }
+        
+        .video-modal-content {
+            position: relative;
+            width: 100%;
+            max-width: 1200px;
+            background: #000;
+            border-radius: 12px;
+            overflow: hidden;
+        }
+        
+        .video-modal-close {
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            width: 40px;
+            height: 40px;
+            background: rgba(0, 0, 0, 0.7);
+            color: white;
+            border: none;
+            border-radius: 50%;
+            font-size: 24px;
+            cursor: pointer;
+            z-index: 1001;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: background 0.2s;
+        }
+        
+        .video-modal-close:hover {
+            background: rgba(0, 0, 0, 0.9);
+        }
+        
+        .video-modal-player {
+            width: 100%;
+            aspect-ratio: 16 / 9;
+            border: none;
+        }
+        
         .thumbnail-edit {
             display: flex;
-            gap: 8px;
+            gap: 6px;
             align-items: center;
             margin-top: 8px;
+            flex-wrap: wrap;
+        }
+        
+        .thumbnail-edit label {
+            font-size: 11px;
+            color: #666;
+            margin: 0;
         }
         
         .thumbnail-edit input {
-            width: 100px;
-            padding: 6px 10px;
-            border: 2px solid #e0e0e0;
-            border-radius: 6px;
-            font-size: 13px;
+            width: 80px;
+            padding: 4px 8px;
+            border: 1px solid #e0e0e0;
+            border-radius: 4px;
+            font-size: 12px;
         }
         
         .thumbnail-edit input:focus {
@@ -410,12 +521,12 @@
         }
         
         .thumbnail-edit button {
-            padding: 6px 12px;
+            padding: 4px 10px;
             background: #28a745;
             color: white;
             border: none;
-            border-radius: 6px;
-            font-size: 12px;
+            border-radius: 4px;
+            font-size: 11px;
             font-weight: 600;
             cursor: pointer;
             transition: all 0.2s;
@@ -596,6 +707,14 @@
         </div>
     </div>
 
+    <!-- Video Modal -->
+    <div id="videoModal" class="video-modal">
+        <div class="video-modal-content">
+            <button class="video-modal-close" onclick="closeVideoModal()">×</button>
+            <iframe id="videoModalPlayer" class="video-modal-player" src="" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe>
+        </div>
+    </div>
+
     <script>
         const form = document.getElementById('uploadForm');
         const submitBtn = document.getElementById('submitBtn');
@@ -622,6 +741,57 @@
         
         // Worker URL - must be defined before any functions that use it
         const workerUrl = 'https://baltay.cleverpoly-store.workers.dev';
+        
+        // Cloudflare Stream domain
+        const streamDomain = "customer-aanhjdlw75bwi5za.cloudflarestream.com";
+        
+        // Build thumbnail URL
+        function buildThumbnailUrl(streamId, thumbnailTimestamp) {
+            const timeParam = thumbnailTimestamp && thumbnailTimestamp > 0 
+                ? "time=" + thumbnailTimestamp + "s&" 
+                : "";
+            return "https://" + streamDomain + "/" + streamId + "/thumbnails/thumbnail.jpg?" + timeParam + "height=400";
+        }
+        
+        // Build video player URL
+        function buildStreamUrl(streamId, thumbnailTimestamp) {
+            const timeParam = thumbnailTimestamp && thumbnailTimestamp > 0 
+                ? "time=" + thumbnailTimestamp + "s&" 
+                : "";
+            const posterUrl = "https://" + streamDomain + "/" + streamId + "/thumbnails/thumbnail.jpg?" + timeParam + "height=600";
+            return "https://" + streamDomain + "/" + streamId + "/iframe?preload=true&loop=true&poster=" + encodeURIComponent(posterUrl);
+        }
+        
+        // Open video modal
+        function openVideoModal(streamId, thumbnailTimestamp) {
+            const modal = document.getElementById('videoModal');
+            const player = document.getElementById('videoModalPlayer');
+            player.src = buildStreamUrl(streamId, thumbnailTimestamp);
+            modal.classList.add('active');
+        }
+        
+        // Close video modal
+        function closeVideoModal() {
+            const modal = document.getElementById('videoModal');
+            const player = document.getElementById('videoModalPlayer');
+            modal.classList.remove('active');
+            player.src = ''; // Stop video playback
+        }
+        
+        // Close modal on outside click
+        document.addEventListener('click', (e) => {
+            const modal = document.getElementById('videoModal');
+            if (e.target === modal) {
+                closeVideoModal();
+            }
+        });
+        
+        // Close modal on Escape key
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'Escape') {
+                closeVideoModal();
+            }
+        });
         
         // Check if already authenticated (from sessionStorage)
         if (sessionStorage.getItem('baltay_authenticated') === 'true') {
@@ -767,31 +937,35 @@
         // Display videos in the list
         function displayVideos(videos) {
             if (videos.length === 0) {
-                videosList.innerHTML = '<div style="padding: 30px; text-align: center; color: #666; font-size: 14px;">No videos found. Upload your first video above!</div>';
+                videosList.innerHTML = '<div style="padding: 30px; text-align: center; color: #666; font-size: 14px; grid-column: 1 / -1;">No videos found. Upload your first video above!</div>';
                 return;
             }
             
             videosList.innerHTML = videos.map((video, index) => {
                 const thumbnailTime = video.thumbnail_timestamp || video.thumbnailTimestamp || 0;
+                const streamId = video.streamid || video.streamId || '';
+                const thumbnailUrl = streamId ? buildThumbnailUrl(streamId, thumbnailTime) : '';
+                
                 return `
                 <div class="video-item" data-id="${video.id}">
+                    <div class="video-thumbnail-container" onclick="openVideoModal('${streamId}', ${thumbnailTime})">
+                        ${thumbnailUrl ? `<img src="${thumbnailUrl}" alt="${escapeHtml(video.name || 'Video')}" class="video-thumbnail" loading="lazy">` : '<div style="width: 100%; height: 100%; background: #333; display: flex; align-items: center; justify-content: center; color: #999;">No thumbnail</div>'}
+                        <div class="video-play-overlay"></div>
+                    </div>
                     <div class="video-info">
                         <div class="video-name">
-                            <span style="color: #667eea; font-weight: 700; margin-right: 8px;">#${index + 1}</span>
                             ${escapeHtml(video.name || 'Untitled Video')}
                         </div>
-                        <div style="margin-top: 8px;">
-                            <span class="video-id">${video.streamid || video.streamId || 'N/A'}</span>
-                        </div>
+                        <div class="video-id">${streamId || 'N/A'}</div>
                         <div class="thumbnail-edit">
-                            <label style="font-size: 12px; color: #666;">Thumbnail (s):</label>
-                            <input type="number" id="thumbTime_${video.id}" value="${thumbnailTime}" step="0.1" min="0" placeholder="0">
-                            <button onclick="updateThumbnail(${video.id}, '${escapeHtml(video.name || 'this video')}')">💾 Save</button>
+                            <label>Thumbnail (s):</label>
+                            <input type="number" id="thumbTime_${video.id}" value="${thumbnailTime}" step="0.1" min="0" placeholder="0" onclick="event.stopPropagation()">
+                            <button onclick="event.stopPropagation(); updateThumbnail(${video.id}, '${escapeHtml(video.name || 'this video')}')">💾 Save</button>
                         </div>
-                    </div>
-                    <div class="video-actions">
-                        <button class="btn-edit" onclick="editThumbnail(${video.id})">✏️ Edit</button>
-                        <button class="btn-delete" onclick="deleteVideo(${video.id}, '${escapeHtml(video.name || 'this video')}')">🗑️ Delete</button>
+                        <div class="video-actions">
+                            <button class="btn-edit" onclick="event.stopPropagation(); editThumbnail(${video.id})">✏️ Edit</button>
+                            <button class="btn-delete" onclick="event.stopPropagation(); deleteVideo(${video.id}, '${escapeHtml(video.name || 'this video')}')">🗑️ Delete</button>
+                        </div>
                     </div>
                 </div>
             `;
@@ -911,6 +1085,8 @@
         window.deleteVideo = deleteVideo;
         window.updateThumbnail = updateThumbnail;
         window.editThumbnail = editThumbnail;
+        window.openVideoModal = openVideoModal;
+        window.closeVideoModal = closeVideoModal;
         
         // Sort videos when sort dropdown changes
         sortBy.addEventListener('change', () => {

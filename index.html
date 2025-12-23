@@ -390,6 +390,7 @@
             margin-top: auto;
             padding-top: 12px;
             border-top: 1px solid #e0e0e0;
+            flex-wrap: wrap;
         }
         
         .btn-delete {
@@ -433,6 +434,28 @@
         }
         
         .btn-edit:active {
+            transform: translateY(0);
+        }
+        
+        .btn-download {
+            padding: 6px 12px;
+            background: linear-gradient(135deg, #28a745 0%, #218838 100%);
+            color: white;
+            border: none;
+            border-radius: 6px;
+            font-size: 12px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s;
+            flex: 1;
+        }
+        
+        .btn-download:hover {
+            background: linear-gradient(135deg, #218838 0%, #1e7e34 100%);
+            transform: translateY(-1px);
+        }
+        
+        .btn-download:active {
             transform: translateY(0);
         }
         
@@ -762,6 +785,12 @@
             return "https://" + streamDomain + "/" + streamId + "/iframe?preload=true&loop=true&poster=" + encodeURIComponent(posterUrl);
         }
         
+        // Build video download URL
+        function buildDownloadUrl(streamId) {
+            // Try to get download URL via worker first, fallback to direct URL
+            return workerUrl + '/download-video?streamId=' + encodeURIComponent(streamId);
+        }
+        
         // Open video modal
         function openVideoModal(streamId, thumbnailTimestamp) {
             const modal = document.getElementById('videoModal');
@@ -963,6 +992,7 @@
                             <button onclick="event.stopPropagation(); updateThumbnail(${video.id}, '${escapeHtml(video.name || 'this video')}')">💾 Save</button>
                         </div>
                         <div class="video-actions">
+                            <button class="btn-download" onclick="event.stopPropagation(); downloadVideo('${streamId}', '${escapeHtml(video.name || 'video')}')">⬇️ Download</button>
                             <button class="btn-edit" onclick="event.stopPropagation(); editThumbnail(${video.id})">✏️ Edit</button>
                             <button class="btn-delete" onclick="event.stopPropagation(); deleteVideo(${video.id}, '${escapeHtml(video.name || 'this video')}')">🗑️ Delete</button>
                         </div>
@@ -1081,12 +1111,89 @@
             return div.innerHTML;
         }
         
+        // Download video
+        async function downloadVideo(streamId, videoName) {
+            if (!streamId) {
+                response.className = 'response error';
+                response.innerHTML = '<pre>Error: No stream ID available for download</pre>';
+                response.style.display = 'block';
+                setTimeout(() => {
+                    response.style.display = 'none';
+                }, 3000);
+                return;
+            }
+            
+            try {
+                // Try to get download URL from worker first
+                let downloadUrl = null;
+                try {
+                    const downloadResponse = await fetch(workerUrl + '/download-video?streamId=' + encodeURIComponent(streamId), {
+                        method: 'GET',
+                        headers: {
+                            'Content-Type': 'application/json'
+                        }
+                    });
+                    
+                    if (downloadResponse.ok) {
+                        const data = await downloadResponse.json();
+                        downloadUrl = data.downloadUrl || data.url;
+                    }
+                } catch (workerError) {
+                    console.log('Worker download endpoint not available, trying direct URL');
+                }
+                
+                // If worker didn't provide URL, try direct Cloudflare Stream URL
+                if (!downloadUrl) {
+                    // Try different possible download URL formats
+                    // Format 1: Direct video file (if available)
+                    downloadUrl = 'https://' + streamDomain + '/' + streamId + '/video.mp4';
+                }
+                
+                // Create a temporary anchor element to trigger download
+                const link = document.createElement('a');
+                link.href = downloadUrl;
+                link.download = (videoName || 'video').replace(/[^a-z0-9]/gi, '_') + '.mp4';
+                link.target = '_blank';
+                link.rel = 'noopener noreferrer';
+                document.body.appendChild(link);
+                link.click();
+                document.body.removeChild(link);
+                
+                // Show success message
+                response.className = 'response success';
+                response.innerHTML = `<pre>Download started for "${videoName}". If the download doesn't start, the video may need to be accessed via the video player.</pre>`;
+                response.style.display = 'block';
+                setTimeout(() => {
+                    response.style.display = 'none';
+                }, 5000);
+                
+            } catch (error) {
+                console.error('Error downloading video:', error);
+                
+                // Fallback: Open video in modal where user can right-click to download
+                response.className = 'response';
+                response.style.background = 'linear-gradient(135deg, #d1ecf1 0%, #bee5eb 100%)';
+                response.style.border = '2px solid #17a2b8';
+                response.style.color = '#0c5460';
+                response.innerHTML = '<pre>Opening video player. Right-click on the video and select "Save video as..." to download.</pre>';
+                response.style.display = 'block';
+                
+                // Open video modal
+                openVideoModal(streamId, 0);
+                
+                setTimeout(() => {
+                    response.style.display = 'none';
+                }, 5000);
+            }
+        }
+        
         // Make functions available globally
         window.deleteVideo = deleteVideo;
         window.updateThumbnail = updateThumbnail;
         window.editThumbnail = editThumbnail;
         window.openVideoModal = openVideoModal;
         window.closeVideoModal = closeVideoModal;
+        window.downloadVideo = downloadVideo;
         
         // Sort videos when sort dropdown changes
         sortBy.addEventListener('change', () => {

@@ -785,12 +785,6 @@
             return "https://" + streamDomain + "/" + streamId + "/iframe?preload=true&loop=true&poster=" + encodeURIComponent(posterUrl);
         }
         
-        // Build video download URL
-        function buildDownloadUrl(streamId) {
-            // Try to get download URL via worker first, fallback to direct URL
-            return workerUrl + '/download-video?streamId=' + encodeURIComponent(streamId);
-        }
-        
         // Open video modal
         function openVideoModal(streamId, thumbnailTimestamp) {
             const modal = document.getElementById('videoModal');
@@ -1133,7 +1127,7 @@
             
             try {
                 // Call worker to generate download and get download URL
-                // Worker should: 1) POST to enable downloads, 2) Poll/check status, 3) Return download URL
+                // Worker handles: 1) POST to enable downloads, 2) Poll/check status, 3) Return download URL
                 const downloadResponse = await fetch(workerUrl + '/download-video', {
                     method: 'POST',
                     headers: {
@@ -1144,9 +1138,26 @@
                     })
                 });
                 
+                const data = await downloadResponse.json();
+                
+                // Handle 202 Accepted - download is still processing
+                if (downloadResponse.status === 202) {
+                    response.className = 'response';
+                    response.style.background = 'linear-gradient(135deg, #fff3cd 0%, #ffeaa7 100%)';
+                    response.style.border = '2px solid #ffc107';
+                    response.style.color = '#856404';
+                    const message = data.message || 'Download is being generated. Please wait a moment and try again.';
+                    response.innerHTML = '<pre>' + escapeHtml(message) + '</pre>';
+                    response.style.display = 'block';
+                    setTimeout(() => {
+                        response.style.display = 'none';
+                    }, 5000);
+                    return;
+                }
+                
+                // Handle errors
                 if (!downloadResponse.ok) {
-                    const errorData = await downloadResponse.json().catch(() => ({}));
-                    const errorMsg = errorData.error || errorData.message || 'Failed to generate download';
+                    const errorMsg = data.error || data.message || 'Failed to generate download';
                     
                     // If 404, download might not be available
                     if (downloadResponse.status === 404) {
@@ -1163,11 +1174,11 @@
                     throw new Error(errorMsg);
                 }
                 
-                const data = await downloadResponse.json();
+                // Success - get download URL
                 const downloadUrl = data.downloadUrl || data.url || data.download_url;
                 const status = data.status || data.state;
                 
-                if (downloadUrl && (status === 'ready' || !status)) {
+                if (downloadUrl) {
                     // Download URL is ready, trigger download
                     const link = document.createElement('a');
                     link.href = downloadUrl;
@@ -1185,19 +1196,8 @@
                     setTimeout(() => {
                         response.style.display = 'none';
                     }, 3000);
-                } else if (status === 'processing' || status === 'pending') {
-                    // Download is still being generated
-                    response.className = 'response';
-                    response.style.background = 'linear-gradient(135deg, #fff3cd 0%, #ffeaa7 100%)';
-                    response.style.border = '2px solid #ffc107';
-                    response.style.color = '#856404';
-                    response.innerHTML = '<pre>Download is being generated. Please wait a moment and try again.</pre>';
-                    response.style.display = 'block';
-                    setTimeout(() => {
-                        response.style.display = 'none';
-                    }, 5000);
                 } else {
-                    // Unknown status or no URL
+                    // No download URL returned
                     throw new Error('Download URL not available');
                 }
                 

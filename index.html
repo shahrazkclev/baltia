@@ -1128,12 +1128,12 @@
             response.style.background = 'linear-gradient(135deg, #d1ecf1 0%, #bee5eb 100%)';
             response.style.border = '2px solid #17a2b8';
             response.style.color = '#0c5460';
-            response.innerHTML = '<pre>Preparing download for "' + escapeHtml(videoName) + '"...</pre>';
+            response.innerHTML = '<pre>Generating download for "' + escapeHtml(videoName) + '"...</pre>';
             response.style.display = 'block';
             
             try {
-                // Call worker to enable downloads and get download URL
-                // The worker should handle: POST to enable downloads, then GET to retrieve URL
+                // Call worker to generate download and get download URL
+                // Worker should: 1) POST to enable downloads, 2) Poll/check status, 3) Return download URL
                 const downloadResponse = await fetch(workerUrl + '/download-video', {
                     method: 'POST',
                     headers: {
@@ -1144,50 +1144,11 @@
                     })
                 });
                 
-                if (downloadResponse.ok) {
-                    const data = await downloadResponse.json();
-                    const downloadUrl = data.downloadUrl || data.url || data.download_url;
-                    
-                    if (downloadUrl) {
-                        // Create a temporary anchor element to trigger download
-                        const link = document.createElement('a');
-                        link.href = downloadUrl;
-                        link.download = (videoName || 'video').replace(/[^a-z0-9]/gi, '_') + '.mp4';
-                        link.target = '_blank';
-                        link.rel = 'noopener noreferrer';
-                        document.body.appendChild(link);
-                        link.click();
-                        document.body.removeChild(link);
-                        
-                        // Show success message
-                        response.className = 'response success';
-                        response.innerHTML = `<pre>Download started for "${escapeHtml(videoName)}"</pre>`;
-                        response.style.display = 'block';
-                        setTimeout(() => {
-                            response.style.display = 'none';
-                        }, 3000);
-                        return;
-                    } else {
-                        // Check if download is still processing
-                        const status = data.status || data.state;
-                        if (status === 'processing' || status === 'pending') {
-                            response.className = 'response';
-                            response.style.background = 'linear-gradient(135deg, #fff3cd 0%, #ffeaa7 100%)';
-                            response.style.border = '2px solid #ffc107';
-                            response.style.color = '#856404';
-                            response.innerHTML = '<pre>Download is being prepared. Please wait a moment and try again.</pre>';
-                            response.style.display = 'block';
-                            setTimeout(() => {
-                                response.style.display = 'none';
-                            }, 5000);
-                            return;
-                        }
-                    }
-                } else {
+                if (!downloadResponse.ok) {
                     const errorData = await downloadResponse.json().catch(() => ({}));
-                    const errorMsg = errorData.error || errorData.message || 'Failed to prepare download';
+                    const errorMsg = errorData.error || errorData.message || 'Failed to generate download';
                     
-                    // If 404 or download not enabled, show helpful message
+                    // If 404, download might not be available
                     if (downloadResponse.status === 404) {
                         response.className = 'response error';
                         response.innerHTML = '<pre>Download not available for this video. Opening video player - right-click to save.</pre>';
@@ -1200,6 +1161,44 @@
                     }
                     
                     throw new Error(errorMsg);
+                }
+                
+                const data = await downloadResponse.json();
+                const downloadUrl = data.downloadUrl || data.url || data.download_url;
+                const status = data.status || data.state;
+                
+                if (downloadUrl && (status === 'ready' || !status)) {
+                    // Download URL is ready, trigger download
+                    const link = document.createElement('a');
+                    link.href = downloadUrl;
+                    link.download = (videoName || 'video').replace(/[^a-z0-9]/gi, '_') + '.mp4';
+                    link.target = '_blank';
+                    link.rel = 'noopener noreferrer';
+                    document.body.appendChild(link);
+                    link.click();
+                    document.body.removeChild(link);
+                    
+                    // Show success message
+                    response.className = 'response success';
+                    response.innerHTML = `<pre>Download started for "${escapeHtml(videoName)}"</pre>`;
+                    response.style.display = 'block';
+                    setTimeout(() => {
+                        response.style.display = 'none';
+                    }, 3000);
+                } else if (status === 'processing' || status === 'pending') {
+                    // Download is still being generated
+                    response.className = 'response';
+                    response.style.background = 'linear-gradient(135deg, #fff3cd 0%, #ffeaa7 100%)';
+                    response.style.border = '2px solid #ffc107';
+                    response.style.color = '#856404';
+                    response.innerHTML = '<pre>Download is being generated. Please wait a moment and try again.</pre>';
+                    response.style.display = 'block';
+                    setTimeout(() => {
+                        response.style.display = 'none';
+                    }, 5000);
+                } else {
+                    // Unknown status or no URL
+                    throw new Error('Download URL not available');
                 }
                 
             } catch (error) {

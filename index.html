@@ -1123,49 +1123,84 @@
                 return;
             }
             
+            // Show loading message
+            response.className = 'response';
+            response.style.background = 'linear-gradient(135deg, #d1ecf1 0%, #bee5eb 100%)';
+            response.style.border = '2px solid #17a2b8';
+            response.style.color = '#0c5460';
+            response.innerHTML = '<pre>Preparing download for "' + escapeHtml(videoName) + '"...</pre>';
+            response.style.display = 'block';
+            
             try {
-                // Try to get download URL from worker first
-                let downloadUrl = null;
-                try {
-                    const downloadResponse = await fetch(workerUrl + '/download-video?streamId=' + encodeURIComponent(streamId), {
-                        method: 'GET',
-                        headers: {
-                            'Content-Type': 'application/json'
-                        }
-                    });
+                // Call worker to enable downloads and get download URL
+                // The worker should handle: POST to enable downloads, then GET to retrieve URL
+                const downloadResponse = await fetch(workerUrl + '/download-video', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        streamId: streamId
+                    })
+                });
+                
+                if (downloadResponse.ok) {
+                    const data = await downloadResponse.json();
+                    const downloadUrl = data.downloadUrl || data.url || data.download_url;
                     
-                    if (downloadResponse.ok) {
-                        const data = await downloadResponse.json();
-                        downloadUrl = data.downloadUrl || data.url;
+                    if (downloadUrl) {
+                        // Create a temporary anchor element to trigger download
+                        const link = document.createElement('a');
+                        link.href = downloadUrl;
+                        link.download = (videoName || 'video').replace(/[^a-z0-9]/gi, '_') + '.mp4';
+                        link.target = '_blank';
+                        link.rel = 'noopener noreferrer';
+                        document.body.appendChild(link);
+                        link.click();
+                        document.body.removeChild(link);
+                        
+                        // Show success message
+                        response.className = 'response success';
+                        response.innerHTML = `<pre>Download started for "${escapeHtml(videoName)}"</pre>`;
+                        response.style.display = 'block';
+                        setTimeout(() => {
+                            response.style.display = 'none';
+                        }, 3000);
+                        return;
+                    } else {
+                        // Check if download is still processing
+                        const status = data.status || data.state;
+                        if (status === 'processing' || status === 'pending') {
+                            response.className = 'response';
+                            response.style.background = 'linear-gradient(135deg, #fff3cd 0%, #ffeaa7 100%)';
+                            response.style.border = '2px solid #ffc107';
+                            response.style.color = '#856404';
+                            response.innerHTML = '<pre>Download is being prepared. Please wait a moment and try again.</pre>';
+                            response.style.display = 'block';
+                            setTimeout(() => {
+                                response.style.display = 'none';
+                            }, 5000);
+                            return;
+                        }
                     }
-                } catch (workerError) {
-                    console.log('Worker download endpoint not available, trying direct URL');
+                } else {
+                    const errorData = await downloadResponse.json().catch(() => ({}));
+                    const errorMsg = errorData.error || errorData.message || 'Failed to prepare download';
+                    
+                    // If 404 or download not enabled, show helpful message
+                    if (downloadResponse.status === 404) {
+                        response.className = 'response error';
+                        response.innerHTML = '<pre>Download not available for this video. Opening video player - right-click to save.</pre>';
+                        response.style.display = 'block';
+                        openVideoModal(streamId, 0);
+                        setTimeout(() => {
+                            response.style.display = 'none';
+                        }, 5000);
+                        return;
+                    }
+                    
+                    throw new Error(errorMsg);
                 }
-                
-                // If worker didn't provide URL, try direct Cloudflare Stream URL
-                if (!downloadUrl) {
-                    // Try different possible download URL formats
-                    // Format 1: Direct video file (if available)
-                    downloadUrl = 'https://' + streamDomain + '/' + streamId + '/video.mp4';
-                }
-                
-                // Create a temporary anchor element to trigger download
-                const link = document.createElement('a');
-                link.href = downloadUrl;
-                link.download = (videoName || 'video').replace(/[^a-z0-9]/gi, '_') + '.mp4';
-                link.target = '_blank';
-                link.rel = 'noopener noreferrer';
-                document.body.appendChild(link);
-                link.click();
-                document.body.removeChild(link);
-                
-                // Show success message
-                response.className = 'response success';
-                response.innerHTML = `<pre>Download started for "${videoName}". If the download doesn't start, the video may need to be accessed via the video player.</pre>`;
-                response.style.display = 'block';
-                setTimeout(() => {
-                    response.style.display = 'none';
-                }, 5000);
                 
             } catch (error) {
                 console.error('Error downloading video:', error);
